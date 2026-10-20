@@ -133,6 +133,7 @@ pub struct ViewState {
 
     marked_text: RefCell<Retained<NSMutableAttributedString>>,
     accepts_first_mouse: bool,
+    movable_by_window_background: bool,
 
     // Weak reference because the window keeps a strong reference to the view
     _ns_window: WeakId<WinitWindow>,
@@ -780,6 +781,15 @@ declare_class!(
             trace_scope!("acceptsFirstMouse:");
             self.ivars().accepts_first_mouse
         }
+
+        // NSView's default permits server-side dragging over non-opaque views.
+        // In a full-size content view that steals client gestures in the titlebar
+        // before they reach the application. Keep it explicitly opt-in; clients
+        // can still initiate native movement through Window::drag_window.
+        #[method(mouseDownCanMoveWindow)]
+        fn mouse_down_can_move_window(&self) -> bool {
+            self.ivars().movable_by_window_background
+        }
     }
 );
 
@@ -788,6 +798,7 @@ impl WinitView {
         app_delegate: &ApplicationDelegate,
         window: &WinitWindow,
         accepts_first_mouse: bool,
+        movable_by_window_background: bool,
         option_as_alt: OptionAsAlt,
     ) -> Retained<Self> {
         let mtm = MainThreadMarker::from(window);
@@ -805,6 +816,7 @@ impl WinitView {
             forward_key_to_app: Default::default(),
             marked_text: Default::default(),
             accepts_first_mouse,
+            movable_by_window_background,
             _ns_window: WeakId::new(&window.retain()),
             option_as_alt: Cell::new(option_as_alt),
         });
